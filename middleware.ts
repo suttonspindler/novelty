@@ -1,8 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const PROTECTED = ['/dashboard', '/settings']
+const AUTH_ONLY = ['/login', '/signup', '/reset-password', '/update-password']
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
+  const { pathname } = request.nextUrl
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,8 +27,21 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session — must not call supabase.auth.getUser() between createServerClient and this
-  await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // Unauthenticated users trying to access protected routes → login
+  if (!user && PROTECTED.some((p) => pathname.startsWith(p))) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  // Authenticated users trying to access auth pages → dashboard
+  if (user && AUTH_ONLY.some((p) => pathname.startsWith(p))) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
+  }
 
   return supabaseResponse
 }
