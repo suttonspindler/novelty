@@ -32,7 +32,7 @@ export default async function LandingPage() {
           <span className="text-muted-foreground">Discover what&apos;s next.</span>
         </h1>
         <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-          Novelty is a modern reading tracker — shelves, ratings, reviews, and a schedule
+          Novelty is a modern reading tracker: shelves, ratings, reviews, and a schedule
           optimizer that keeps you on pace.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row gap-3">
