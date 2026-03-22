@@ -37,6 +37,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       books: {
         Row: {
@@ -99,6 +100,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       shelves: {
         Row: {
@@ -125,6 +127,14 @@ export type Database = {
           is_default?: boolean
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'shelves_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          }
+        ]
       }
       book_shelves: {
         Row: {
@@ -148,6 +158,26 @@ export type Database = {
           shelf_id?: string
           added_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'book_shelves_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'book_shelves_book_id_fkey'
+            columns: ['book_id']
+            referencedRelation: 'books'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'book_shelves_shelf_id_fkey'
+            columns: ['shelf_id']
+            referencedRelation: 'shelves'
+            referencedColumns: ['id']
+          }
+        ]
       }
       ratings: {
         Row: {
@@ -174,6 +204,20 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'ratings_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ratings_book_id_fkey'
+            columns: ['book_id']
+            referencedRelation: 'books'
+            referencedColumns: ['id']
+          }
+        ]
       }
       reviews: {
         Row: {
@@ -206,6 +250,20 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'reviews_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'reviews_book_id_fkey'
+            columns: ['book_id']
+            referencedRelation: 'books'
+            referencedColumns: ['id']
+          }
+        ]
       }
       review_likes: {
         Row: {
@@ -223,6 +281,20 @@ export type Database = {
           review_id?: string
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'review_likes_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'review_likes_review_id_fkey'
+            columns: ['review_id']
+            referencedRelation: 'reviews'
+            referencedColumns: ['id']
+          }
+        ]
       }
       review_comments: {
         Row: {
@@ -249,6 +321,20 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'review_comments_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'review_comments_review_id_fkey'
+            columns: ['review_id']
+            referencedRelation: 'reviews'
+            referencedColumns: ['id']
+          }
+        ]
       }
       reading_sessions: {
         Row: {
@@ -281,6 +367,20 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'reading_sessions_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'reading_sessions_book_id_fkey'
+            columns: ['book_id']
+            referencedRelation: 'books'
+            referencedColumns: ['id']
+          }
+        ]
       }
       reading_schedules: {
         Row: {
@@ -316,6 +416,20 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'reading_schedules_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'reading_schedules_book_id_fkey'
+            columns: ['book_id']
+            referencedRelation: 'books'
+            referencedColumns: ['id']
+          }
+        ]
       }
       characters: {
         Row: {
@@ -345,6 +459,20 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'characters_user_id_fkey'
+            columns: ['user_id']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'characters_book_id_fkey'
+            columns: ['book_id']
+            referencedRelation: 'books'
+            referencedColumns: ['id']
+          }
+        ]
       }
       follows: {
         Row: {
@@ -362,11 +490,26 @@ export type Database = {
           following_id?: string
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'follows_follower_id_fkey'
+            columns: ['follower_id']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'follows_following_id_fkey'
+            columns: ['following_id']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          }
+        ]
       }
     }
     Views: Record<string, never>
     Functions: Record<string, never>
     Enums: Record<string, never>
+    CompositeTypes: Record<string, never>
   }
 }
 

@@ -1,0 +1,31 @@
+import { createClient } from '@/lib/supabase/server'
+import type { Database } from '@/types/database.types'
+
+type BookInsert = Database['public']['Tables']['books']['Insert']
+type Book = Database['public']['Tables']['books']['Row']
+
+/**
+ * Upsert one or more books into the database (our cache of OL metadata).
+ * Safe to call repeatedly — ignores conflicts on the primary key and
+ * updates metadata fields so covers/descriptions stay fresh.
+ */
+export async function cacheBooks(books: BookInsert[]): Promise<void> {
+  if (!books.length) return
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('books')
+    .upsert(books, { onConflict: 'id', ignoreDuplicates: false })
+  if (error) {
+    console.error('[cache] Failed to upsert books:', error.message)
+  }
+}
+
+/**
+ * Return a book from the database if it exists, otherwise null.
+ * Use this to check the cache before hitting Open Library.
+ */
+export async function getCachedBook(workId: string): Promise<Book | null> {
+  const supabase = createClient()
+  const { data } = await supabase.from('books').select('*').eq('id', workId).maybeSingle()
+  return (data as Book | null) ?? null
+}
