@@ -35,21 +35,33 @@ export default async function ProfilePage({ params }: Props) {
     )
   }
 
-  const { count: booksRead } = await supabase
-    .from('reading_sessions')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', profile.id)
-    .eq('status', 'read')
+  const [
+    { count: booksRead },
+    { count: reviewCount },
+    { count: followersCount },
+    { data: ratingsData },
+    { data: readBooks },
+  ] = await Promise.all([
+    supabase.from('reading_sessions').select('*', { count: 'exact', head: true }).eq('user_id', profile.id).eq('status', 'read'),
+    supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', profile.id),
+    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profile.id),
+    supabase.from('ratings').select('rating').eq('user_id', profile.id),
+    supabase.from('reading_sessions').select('book_id').eq('user_id', profile.id).eq('status', 'read'),
+  ])
 
-  const { count: reviewCount } = await supabase
-    .from('reviews')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', profile.id)
+  const avgRating = ratingsData?.length
+    ? (ratingsData.reduce((sum, r) => sum + r.rating, 0) / ratingsData.length).toFixed(1)
+    : null
 
-  const { count: followersCount } = await supabase
-    .from('follows')
-    .select('*', { count: 'exact', head: true })
-    .eq('following_id', profile.id)
+  const readBookIds = readBooks?.map((r) => r.book_id) ?? []
+  let pagesRead = 0
+  if (readBookIds.length > 0) {
+    const { data: bookPages } = await supabase
+      .from('books')
+      .select('page_count')
+      .in('id', readBookIds)
+    pagesRead = (bookPages ?? []).reduce((sum, b) => sum + (b.page_count ?? 0), 0)
+  }
 
   const initials = (profile.display_name ?? profile.username).slice(0, 2).toUpperCase()
 
@@ -77,11 +89,23 @@ export default async function ProfilePage({ params }: Props) {
         </div>
       </div>
 
-      <div className="flex gap-8 text-sm">
+      <div className="flex flex-wrap gap-6 text-sm">
         <div>
           <span className="font-bold">{booksRead ?? 0}</span>
           <span className="text-muted-foreground ml-1">books read</span>
         </div>
+        {pagesRead > 0 && (
+          <div>
+            <span className="font-bold">{pagesRead.toLocaleString()}</span>
+            <span className="text-muted-foreground ml-1">pages</span>
+          </div>
+        )}
+        {avgRating && (
+          <div>
+            <span className="font-bold">★ {avgRating}</span>
+            <span className="text-muted-foreground ml-1">avg rating</span>
+          </div>
+        )}
         <div>
           <span className="font-bold">{reviewCount ?? 0}</span>
           <span className="text-muted-foreground ml-1">reviews</span>
