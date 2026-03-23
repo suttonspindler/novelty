@@ -144,17 +144,18 @@ A modern reading tracker with clean UI (Letterboxd-style), reading guidance feat
 - [ ] Add privacy controls for profile visibility
 - [ ] Create "Discover Users" page to find people to follow
 
-## Phase 11: Top 250 Lists (Letterboxd-Style)
+## Phase 11: Top 500 Lists (Letterboxd-Style)
 
+- [ ] Build dev-only seed script before starting this phase (see Dev Seed Data section below)
 - [ ] Research and implement Bayesian average rating algorithm
 - [ ] Apply rating quality weighting (reduce weight for only 1-star or 5-star raters)
-- [ ] Create database views/queries for Top 250 calculation
-- [ ] Build Top 250 All-Time list page
-- [ ] Build Top 250 Fiction list page
-- [ ] Build Top 250 Non-Fiction list page
+- [ ] Create database views/queries for Top 500 calculation
+- [ ] Build Top 500 All-Time list page
+- [ ] Build Top 500 Fiction list page
+- [ ] Build Top 500 Non-Fiction list page
 - [ ] Implement periodic update schedule (daily or weekly cron job)
-- [ ] Create UI for Top 250 lists with book cards
-- [ ] Add pagination for Top 250 lists
+- [ ] Create UI for Top 500 lists with book cards
+- [ ] Add pagination for Top 500 lists
 - [ ] Test rating calculation with various data scenarios
 
 ## Phase 12: Advanced Filtering & Discovery
@@ -179,6 +180,22 @@ A modern reading tracker with clean UI (Letterboxd-style), reading guidance feat
 - [ ] Build content moderation queue (flagged reviews)
 - [ ] Add user management tools (view users, ban/suspend)
 - [ ] Create admin logs for actions taken
+
+## Dev Seed Data (build at start of Phase 11)
+
+**Purpose:** Test Top 250 algorithm and social features without fake production data.
+**Never runs in production** — gated behind a `SEED_SECRET` env var that only exists in dev/staging.
+
+- [ ] Create `scripts/seed-dev.ts` — a one-time script callable via a secret API endpoint
+- [ ] Seed ~200 real books from Open Library (classics, bestsellers, award winners)
+- [ ] Create 15-20 clearly-labeled test accounts (e.g. `seed_user_1@novelty.dev`) using Supabase service role
+- [ ] Generate realistic randomized ratings (not all 5-star — normal distribution around 3.5) for seeded books
+- [ ] Generate short placeholder reviews for a subset of books
+- [ ] Create a `DELETE /api/dev/seed` endpoint to wipe seed data cleanly
+- [ ] Add `SEED_SECRET` to `.env.local.example` with a note that it must never be set in production Vercel env vars
+- [ ] Verify Top 250 list populates correctly with seed data before removing it
+
+---
 
 ## Phase 14: Content Bootstrapping (No Fake Users)
 
