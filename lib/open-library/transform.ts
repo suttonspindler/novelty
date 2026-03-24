@@ -61,7 +61,7 @@ export function deduplicateSearchDocs(docs: OLSearchDoc[]): OLSearchDoc[] {
 
   // Pass 2: normalized title + first author key
   const byTitleAuthor = new Map<string, OLSearchDoc>()
-  for (const doc of byWork.values()) {
+  for (const doc of Array.from(byWork.values())) {
     const titleNorm = doc.title.toLowerCase().replace(/[^a-z0-9]/g, '')
     // Use OL author key (stable ID) so "Murakami" always groups together
     // regardless of how his name is spelled in different work entries
