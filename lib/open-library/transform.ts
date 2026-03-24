@@ -16,11 +16,28 @@ function isLatinScript(text: string): boolean {
   return !/[^\u0000-\u024F\s]/.test(text)
 }
 
+/**
+ * Normalizes an author name string.
+ * OL's author_alternative_name is often stored in ALL CAPS — convert to title case
+ * only when the entire string is uppercase, leaving mixed-case names untouched.
+ */
+function normalizeAuthorName(name: string): string {
+  if (name === name.toUpperCase() && name !== name.toLowerCase()) {
+    return name.replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+  }
+  return name
+}
+
 function bestDoc(a: OLSearchDoc, b: OLSearchDoc): OLSearchDoc {
   const aIsLatin = (a.author_name ?? []).every(isLatinScript)
   const bIsLatin = (b.author_name ?? []).every(isLatinScript)
   if (aIsLatin && !bIsLatin) return a
   if (bIsLatin && !aIsLatin) return b
+  // Prefer English editions with a cover (better cover quality than obscure translations)
+  const aEngCover = (a.language ?? []).includes('eng') && !!a.cover_i
+  const bEngCover = (b.language ?? []).includes('eng') && !!b.cover_i
+  if (aEngCover && !bEngCover) return a
+  if (bEngCover && !aEngCover) return b
   return (a.edition_count ?? 0) >= (b.edition_count ?? 0) ? a : b
 }
 
@@ -37,9 +54,12 @@ function bestDoc(a: OLSearchDoc, b: OLSearchDoc): OLSearchDoc {
  * In both passes, prefer Latin-script author names, then highest edition_count.
  */
 export function deduplicateSearchDocs(docs: OLSearchDoc[]): OLSearchDoc[] {
+  // Drop entries with no author — these are usually bare catalog stubs
+  const withAuthor = docs.filter((d) => (d.author_name ?? []).length > 0)
+
   // Pass 1: exact work key
   const byWork = new Map<string, OLSearchDoc>()
-  for (const doc of docs) {
+  for (const doc of withAuthor) {
     const existing = byWork.get(doc.key)
     byWork.set(doc.key, existing ? bestDoc(existing, doc) : doc)
   }
@@ -72,15 +92,15 @@ export function searchDocToBook(doc: OLSearchDoc): BookInsert {
   }
 
   // If primary author names are non-Latin (e.g. 村上春樹), find Latin-script
-  // alternatives from author_alternative_name (e.g. "Haruki Murakami").
-  // We pick one Latin alternative per non-Latin primary name, in order.
+  // alternatives from author_alternative_name (e.g. "HARUKI MURAKAMI").
+  // We pick one Latin alternative per non-Latin primary name, in order,
+  // then normalize capitalization (OL stores these in ALL CAPS).
   let authorNames = doc.author_name ?? []
   if (authorNames.length > 0 && !authorNames.every(isLatinScript)) {
     const latinAlts = (doc.author_alternative_name ?? []).filter(isLatinScript)
     if (latinAlts.length > 0) {
-      // Use as many Latin alts as there are primary authors (usually just 1)
       authorNames = authorNames.map((name, i) =>
-        isLatinScript(name) ? name : (latinAlts[i] ?? latinAlts[0] ?? name)
+        isLatinScript(name) ? name : normalizeAuthorName(latinAlts[i] ?? latinAlts[0] ?? name)
       )
     }
   }
