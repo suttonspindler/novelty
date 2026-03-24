@@ -11,9 +11,9 @@ function extractText(value: string | { type: string; value: string } | undefined
   return value.value ?? null
 }
 
-/** Returns true if every character in the string is Latin-script (or punctuation/space) */
+/** Returns true if the string contains no characters outside the Latin Unicode blocks */
 function isLatinScript(text: string): boolean {
-  return /^[\u0000-\u024F\s\p{P}]+$/u.test(text)
+  return !/[^\u0000-\u024F\s]/.test(text)
 }
 
 /**
