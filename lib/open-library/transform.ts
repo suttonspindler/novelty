@@ -16,40 +16,47 @@ function isLatinScript(text: string): boolean {
   return !/[^\u0000-\u024F\s]/.test(text)
 }
 
+function bestDoc(a: OLSearchDoc, b: OLSearchDoc): OLSearchDoc {
+  const aIsLatin = (a.author_name ?? []).every(isLatinScript)
+  const bIsLatin = (b.author_name ?? []).every(isLatinScript)
+  if (aIsLatin && !bIsLatin) return a
+  if (bIsLatin && !aIsLatin) return b
+  return (a.edition_count ?? 0) >= (b.edition_count ?? 0) ? a : b
+}
+
 /**
- * Deduplicate OL search docs by work key.
- * When multiple docs share the same work key (different editions), keep the one with:
- *   1. Latin-script author names (preferred over non-Latin)
- *   2. Highest edition_count (most popular edition → best cover)
- *   3. A cover image (cover_i present)
+ * Deduplicate OL search docs in two passes:
+ *
+ * Pass 1 — by exact work key: collapses docs that are literally the same OL work.
+ *
+ * Pass 2 — by (normalized title + first author key): OL creates separate work
+ *   entries for each language translation of the same book, so "Norwegian Wood"
+ *   in English vs the Japanese original are different work keys but should be
+ *   shown once. Grouping by title + author key collapses these.
+ *
+ * In both passes, prefer Latin-script author names, then highest edition_count.
  */
 export function deduplicateSearchDocs(docs: OLSearchDoc[]): OLSearchDoc[] {
+  // Pass 1: exact work key
   const byWork = new Map<string, OLSearchDoc>()
-
   for (const doc of docs) {
-    const key = doc.key  // "/works/OL45804W"
-    const existing = byWork.get(key)
-    if (!existing) {
-      byWork.set(key, doc)
-      continue
-    }
-
-    // Prefer Latin-script authors
-    const docIsLatin = (doc.author_name ?? []).every(isLatinScript)
-    const existingIsLatin = (existing.author_name ?? []).every(isLatinScript)
-    if (docIsLatin && !existingIsLatin) {
-      byWork.set(key, doc)
-      continue
-    }
-    if (!docIsLatin && existingIsLatin) continue
-
-    // Both same script — prefer higher edition_count (better cover selection)
-    if ((doc.edition_count ?? 0) > (existing.edition_count ?? 0)) {
-      byWork.set(key, doc)
-    }
+    const existing = byWork.get(doc.key)
+    byWork.set(doc.key, existing ? bestDoc(existing, doc) : doc)
   }
 
-  return Array.from(byWork.values())
+  // Pass 2: normalized title + first author key
+  const byTitleAuthor = new Map<string, OLSearchDoc>()
+  for (const doc of byWork.values()) {
+    const titleNorm = doc.title.toLowerCase().replace(/[^a-z0-9]/g, '')
+    // Use OL author key (stable ID) so "Murakami" always groups together
+    // regardless of how his name is spelled in different work entries
+    const authorKey = doc.author_key?.[0] ?? ''
+    const groupKey = `${titleNorm}|${authorKey}`
+    const existing = byTitleAuthor.get(groupKey)
+    byTitleAuthor.set(groupKey, existing ? bestDoc(existing, doc) : doc)
+  }
+
+  return Array.from(byTitleAuthor.values())
 }
 
 /** Map an OL search result doc to our Book insert shape */
