@@ -1,5 +1,5 @@
 import { searchBooks } from '@/lib/open-library/client'
-import { searchDocToBook } from '@/lib/open-library/transform'
+import { searchDocToBook, deduplicateSearchDocs } from '@/lib/open-library/transform'
 import { cacheBooks } from '@/lib/open-library/cache'
 import { BookCard } from '@/components/books/book-card'
 import { SearchInput } from './search-input'
@@ -24,8 +24,10 @@ export default async function SearchPage({ searchParams }: Props) {
 
   if (query) {
     try {
-      const result = await searchBooks({ query, limit: PAGE_SIZE, offset })
-      books = result.docs.map(searchDocToBook)
+      // Fetch 3x more docs so deduplication has a larger pool to work with
+      const result = await searchBooks({ query, limit: PAGE_SIZE * 3, offset })
+      const dedupedDocs = deduplicateSearchDocs(result.docs).slice(0, PAGE_SIZE)
+      books = dedupedDocs.map(searchDocToBook)
       total = result.numFound
 
       // Cache in background

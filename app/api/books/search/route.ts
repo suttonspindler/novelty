@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { searchBooks } from '@/lib/open-library/client'
-import { searchDocToBook } from '@/lib/open-library/transform'
+import { searchDocToBook, deduplicateSearchDocs } from '@/lib/open-library/transform'
 import { cacheBooks } from '@/lib/open-library/cache'
 
 export const runtime = 'nodejs'
@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const olResponse = await searchBooks({ query, limit, offset })
-    const books = olResponse.docs.map(searchDocToBook)
+    const olResponse = await searchBooks({ query, limit: limit * 3, offset })
+    const books = deduplicateSearchDocs(olResponse.docs).slice(0, limit).map(searchDocToBook)
 
     // Cache results in background — don't await so the user gets results fast
     cacheBooks(books).catch((err) =>

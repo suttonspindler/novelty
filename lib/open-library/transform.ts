@@ -11,6 +11,47 @@ function extractText(value: string | { type: string; value: string } | undefined
   return value.value ?? null
 }
 
+/** Returns true if every character in the string is Latin-script (or punctuation/space) */
+function isLatinScript(text: string): boolean {
+  return /^[\u0000-\u024F\s\p{P}]+$/u.test(text)
+}
+
+/**
+ * Deduplicate OL search docs by work key.
+ * When multiple docs share the same work key (different editions), keep the one with:
+ *   1. Latin-script author names (preferred over non-Latin)
+ *   2. Highest edition_count (most popular edition → best cover)
+ *   3. A cover image (cover_i present)
+ */
+export function deduplicateSearchDocs(docs: OLSearchDoc[]): OLSearchDoc[] {
+  const byWork = new Map<string, OLSearchDoc>()
+
+  for (const doc of docs) {
+    const key = doc.key  // "/works/OL45804W"
+    const existing = byWork.get(key)
+    if (!existing) {
+      byWork.set(key, doc)
+      continue
+    }
+
+    // Prefer Latin-script authors
+    const docIsLatin = (doc.author_name ?? []).every(isLatinScript)
+    const existingIsLatin = (existing.author_name ?? []).every(isLatinScript)
+    if (docIsLatin && !existingIsLatin) {
+      byWork.set(key, doc)
+      continue
+    }
+    if (!docIsLatin && existingIsLatin) continue
+
+    // Both same script — prefer higher edition_count (better cover selection)
+    if ((doc.edition_count ?? 0) > (existing.edition_count ?? 0)) {
+      byWork.set(key, doc)
+    }
+  }
+
+  return Array.from(byWork.values())
+}
+
 /** Map an OL search result doc to our Book insert shape */
 export function searchDocToBook(doc: OLSearchDoc): BookInsert {
   const workId = toWorkId(doc.key)
