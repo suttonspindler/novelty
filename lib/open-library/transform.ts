@@ -127,11 +127,13 @@ export function mergeWorkIntoBook(
   work: OLWorkResponse
 ): BookInsert {
   const coverOlId = work.covers?.[0] ?? base.cover_ol_id ?? null
+  // Don't overwrite a Google Books cover with a lower-quality OL cover
+  const hasGoogleCover = base.cover_url?.includes('books.google')
   return {
     ...base,
     description: extractText(work.description),
     cover_ol_id: coverOlId,
-    cover_url: coverOlId ? coverUrlById(coverOlId) : base.cover_url,
+    cover_url: hasGoogleCover ? base.cover_url : (coverOlId ? coverUrlById(coverOlId) : base.cover_url),
     subjects: work.subjects?.slice(0, 20) ?? base.subjects ?? [],
     publish_date: work.first_publish_date ?? base.publish_date ?? null,
   }
