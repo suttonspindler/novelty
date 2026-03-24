@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { fetchWork } from '@/lib/open-library/client'
 import { searchDocToBook, mergeWorkIntoBook } from '@/lib/open-library/transform'
 import { cacheBooks, getCachedBook } from '@/lib/open-library/cache'
+import { enrichWithGoogleCovers } from '@/lib/google-books/client'
 import { BookCover } from '@/components/books/book-cover'
 import { BookCard } from '@/components/books/book-card'
 import { AddToShelfButton } from '@/components/books/add-to-shelf-button'
@@ -42,7 +43,8 @@ async function getBook(id: string): Promise<Book | null> {
   try {
     const work = await fetchWork(id)
     const base = cached ?? searchDocToBook({ key: `/works/${id}`, title: work.title } as OLSearchDoc)
-    const enriched = mergeWorkIntoBook(base, work)
+    const merged = mergeWorkIntoBook(base, work)
+    const [enriched] = await enrichWithGoogleCovers([merged])
     await cacheBooks([enriched])
     return enriched as Book
   } catch {

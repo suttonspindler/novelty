@@ -1,3 +1,7 @@
+import type { Database } from '@/types/database.types'
+
+type BookInsert = Database['public']['Tables']['books']['Insert']
+
 const GOOGLE_BOOKS_BASE = 'https://www.googleapis.com/books/v1'
 
 /**
@@ -34,4 +38,21 @@ export async function fetchGoogleBooksCover(isbn: string): Promise<string | null
   } catch {
     return null
   }
+}
+
+/**
+ * Enrich a list of books with Google Books covers in parallel.
+ * For each book that has an ISBN and doesn't already have a Google Books cover,
+ * fetches a higher-quality cover and replaces the OL cover URL.
+ */
+export async function enrichWithGoogleCovers(books: BookInsert[]): Promise<BookInsert[]> {
+  return Promise.all(
+    books.map(async (book) => {
+      if (book.cover_url?.includes('books.google')) return book
+      const isbn = (book.isbn_13 as string[] | null)?.[0] ?? (book.isbn_10 as string[] | null)?.[0]
+      if (!isbn) return book
+      const coverUrl = await fetchGoogleBooksCover(isbn)
+      return coverUrl ? { ...book, cover_url: coverUrl } : book
+    })
+  )
 }
