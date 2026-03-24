@@ -1,5 +1,5 @@
 import type { OLSearchDoc, OLWorkResponse } from './types'
-import { coverUrlById, coverUrlByWorkId, toWorkId } from './client'
+import { coverUrlById, coverUrlByWorkId, toWorkId, fetchAuthor, toAuthorId } from './client'
 import type { Database } from '@/types/database.types'
 
 type BookInsert = Database['public']['Tables']['books']['Insert']
@@ -17,15 +17,40 @@ function isLatinScript(text: string): boolean {
 }
 
 /**
- * Normalizes an author name string.
- * OL's author_alternative_name is often stored in ALL CAPS — convert to title case
- * only when the entire string is uppercase, leaving mixed-case names untouched.
+ * For each doc whose primary author names are non-Latin, fetch the OL author
+ * record and replace with the canonical Latin name (e.g. "Haruki Murakami").
+ * Only non-Latin authors trigger a fetch; runs in parallel so the cost is
+ * one extra request per unique non-Latin author in the result set.
  */
-function normalizeAuthorName(name: string): string {
-  if (name === name.toUpperCase() && name !== name.toLowerCase()) {
-    return name.replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-  }
-  return name
+export async function resolveAuthorNames(docs: OLSearchDoc[]): Promise<OLSearchDoc[]> {
+  // Build a cache so we only fetch each unique author once
+  const authorCache = new Map<string, string>()
+
+  return Promise.all(
+    docs.map(async (doc) => {
+      const names = doc.author_name ?? []
+      if (names.every(isLatinScript)) return doc
+
+      const authorKey = doc.author_key?.[0]
+      if (!authorKey) return doc
+
+      try {
+        let canonicalName = authorCache.get(authorKey)
+        if (!canonicalName) {
+          const author = await fetchAuthor(toAuthorId(authorKey))
+          canonicalName = isLatinScript(author.name) ? author.name : undefined
+          if (canonicalName) authorCache.set(authorKey, canonicalName)
+        }
+        if (canonicalName) {
+          return { ...doc, author_name: [canonicalName] }
+        }
+      } catch {
+        // OL author fetch failed — keep original names
+      }
+
+      return doc
+    })
+  )
 }
 
 function bestDoc(a: OLSearchDoc, b: OLSearchDoc): OLSearchDoc {
@@ -91,24 +116,10 @@ export function searchDocToBook(doc: OLSearchDoc): BookInsert {
     else if (isbn.length === 13) isbn13.push(isbn)
   }
 
-  // If primary author names are non-Latin (e.g. 村上春樹), find Latin-script
-  // alternatives from author_alternative_name (e.g. "HARUKI MURAKAMI").
-  // We pick one Latin alternative per non-Latin primary name, in order,
-  // then normalize capitalization (OL stores these in ALL CAPS).
-  let authorNames = doc.author_name ?? []
-  if (authorNames.length > 0 && !authorNames.every(isLatinScript)) {
-    const latinAlts = (doc.author_alternative_name ?? []).filter(isLatinScript)
-    if (latinAlts.length > 0) {
-      authorNames = authorNames.map((name, i) =>
-        isLatinScript(name) ? name : normalizeAuthorName(latinAlts[i] ?? latinAlts[0] ?? name)
-      )
-    }
-  }
-
   return {
     id: workId,
     title: doc.title,
-    author_names: authorNames,
+    author_names: doc.author_name ?? [],
     author_ol_ids: (doc.author_key ?? []).map((k) => k.replace(/^\/authors\//, '')),
     cover_url: coverUrl,
     cover_ol_id: doc.cover_i ?? null,  // kept for reference; cover_url uses work-level endpoint
