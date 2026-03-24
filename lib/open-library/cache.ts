@@ -14,7 +14,9 @@ type Book = Database['public']['Tables']['books']['Row']
  */
 export async function cacheBooks(books: BookInsert[]): Promise<void> {
   if (!books.length) return
-  const supabase = createClient()
+  // Use admin client — RLS blocks anon/user writes to the books table,
+  // which is a shared content cache not tied to any specific user
+  const supabase = createAdminClient()
 
   // Fetch existing cover URLs so we don't overwrite already-upgraded covers
   const ids = books.map((b) => b.id!)
