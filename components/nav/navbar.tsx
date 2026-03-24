@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { UserMenu } from './user-menu'
+import { NavSearch } from './nav-search'
 import { Button } from '@/components/ui/button'
 
 export async function Navbar() {
@@ -20,12 +21,16 @@ export async function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-        <Link href={user ? '/dashboard' : '/'} className="text-lg font-bold tracking-tight">
+      <div className="mx-auto flex h-14 max-w-5xl items-center gap-4 px-4">
+        <Link href={user ? '/dashboard' : '/'} className="text-lg font-bold tracking-tight shrink-0">
           Novelty
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex-1 max-w-sm">
+          <NavSearch />
+        </div>
+
+        <div className="flex items-center gap-2 ml-auto">
           <ThemeToggle />
           {user && profile ? (
             <UserMenu username={profile.username} displayName={profile.display_name} avatarUrl={profile.avatar_url} />
