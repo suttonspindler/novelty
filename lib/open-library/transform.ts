@@ -77,11 +77,12 @@ export function deduplicateSearchDocs(docs: OLSearchDoc[]): OLSearchDoc[] {
 /** Map an OL search result doc to our Book insert shape */
 export function searchDocToBook(doc: OLSearchDoc): BookInsert {
   const workId = toWorkId(doc.key)
-  // Use the work-level canonical cover rather than the per-edition cover_i —
-  // cover_i reflects whichever edition OL happened to index, which may be a
-  // foreign-language edition. The work cover endpoint always returns the most
-  // representative cover for the work as a whole.
-  const coverUrl = coverUrlByWorkId(workId)
+  // Only generate a cover URL if OL has at least one cover for this work
+  // (indicated by cover_i being present). coverUrlByWorkId on a work with no
+  // cover returns OL's "no image" placeholder (HTTP 200), which we can't
+  // detect client-side. If cover_i is absent, leave null so Google Books
+  // enrichment can fill in, or BookCover falls back to initials.
+  const coverUrl = doc.cover_i ? coverUrlByWorkId(workId) : null
 
   const isbn10: string[] = []
   const isbn13: string[] = []
