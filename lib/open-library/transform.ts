@@ -1,5 +1,5 @@
 import type { OLSearchDoc, OLWorkResponse } from './types'
-import { coverUrlById, toWorkId } from './client'
+import { coverUrlById, coverUrlByWorkId, toWorkId } from './client'
 import type { Database } from '@/types/database.types'
 
 type BookInsert = Database['public']['Tables']['books']['Insert']
@@ -33,11 +33,6 @@ function bestDoc(a: OLSearchDoc, b: OLSearchDoc): OLSearchDoc {
   const bIsLatin = (b.author_name ?? []).every(isLatinScript)
   if (aIsLatin && !bIsLatin) return a
   if (bIsLatin && !aIsLatin) return b
-  // Prefer English editions with a cover (better cover quality than obscure translations)
-  const aEngCover = (a.language ?? []).includes('eng') && !!a.cover_i
-  const bEngCover = (b.language ?? []).includes('eng') && !!b.cover_i
-  if (aEngCover && !bEngCover) return a
-  if (bEngCover && !aEngCover) return b
   return (a.edition_count ?? 0) >= (b.edition_count ?? 0) ? a : b
 }
 
@@ -82,7 +77,11 @@ export function deduplicateSearchDocs(docs: OLSearchDoc[]): OLSearchDoc[] {
 /** Map an OL search result doc to our Book insert shape */
 export function searchDocToBook(doc: OLSearchDoc): BookInsert {
   const workId = toWorkId(doc.key)
-  const coverUrl = doc.cover_i ? coverUrlById(doc.cover_i) : null
+  // Use the work-level canonical cover rather than the per-edition cover_i —
+  // cover_i reflects whichever edition OL happened to index, which may be a
+  // foreign-language edition. The work cover endpoint always returns the most
+  // representative cover for the work as a whole.
+  const coverUrl = coverUrlByWorkId(workId)
 
   const isbn10: string[] = []
   const isbn13: string[] = []
@@ -111,7 +110,7 @@ export function searchDocToBook(doc: OLSearchDoc): BookInsert {
     author_names: authorNames,
     author_ol_ids: (doc.author_key ?? []).map((k) => k.replace(/^\/authors\//, '')),
     cover_url: coverUrl,
-    cover_ol_id: doc.cover_i ?? null,
+    cover_ol_id: doc.cover_i ?? null,  // kept for reference; cover_url uses work-level endpoint
     isbn_10: isbn10.length ? isbn10 : null,
     isbn_13: isbn13.length ? isbn13 : null,
     first_publish_year: doc.first_publish_year ?? null,

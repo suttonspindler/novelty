@@ -91,6 +91,11 @@ export function coverUrlByIsbn(isbn: string, size: CoverSize = 'L'): string {
   return `${OL_COVERS}/b/isbn/${isbn}-${size}.jpg`
 }
 
+/** Canonical work cover — more stable than per-edition cover_i from search docs */
+export function coverUrlByWorkId(workId: string, size: CoverSize = 'L'): string {
+  return `${OL_COVERS}/w/olid/${workId}-${size}.jpg`
+}
+
 // ── Work ID utils ────────────────────────────────────────────
 
 /** Strip "/works/" prefix from an OL key → bare work ID */
