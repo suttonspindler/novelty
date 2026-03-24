@@ -38,8 +38,21 @@ export async function resolveAuthorNames(docs: OLSearchDoc[]): Promise<OLSearchD
         let canonicalName = authorCache.get(authorKey)
         if (!canonicalName) {
           const author = await fetchAuthor(toAuthorId(authorKey))
-          canonicalName = isLatinScript(author.name) ? author.name : undefined
-          if (canonicalName) authorCache.set(authorKey, canonicalName)
+          // Try canonical name first, then alternate_names, then personal_name
+          const candidates = [
+            author.name,
+            ...(author.alternate_names ?? []),
+            author.personal_name,
+          ].filter((n): n is string => !!n && isLatinScript(n))
+
+          if (candidates.length > 0) {
+            // Normalize ALL-CAPS entries (OL stores some alternate names in caps)
+            const best = candidates[0]
+            canonicalName = best === best.toUpperCase() && best !== best.toLowerCase()
+              ? best.replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+              : best
+            authorCache.set(authorKey, canonicalName)
+          }
         }
         if (canonicalName) {
           return { ...doc, author_name: [canonicalName] }

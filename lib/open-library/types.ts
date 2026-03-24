@@ -36,6 +36,8 @@ export interface OLWorkResponse {
 export interface OLAuthorResponse {
   key: string                   // "/authors/OL34184A"
   name: string
+  alternate_names?: string[]    // includes romanized forms e.g. "Haruki Murakami"
+  personal_name?: string
   birth_date?: string
   death_date?: string
   bio?: string | { type: string; value: string }
