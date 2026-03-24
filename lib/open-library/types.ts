@@ -12,6 +12,7 @@ export interface OLSearchDoc {
   title: string
   author_name?: string[]
   author_key?: string[]         // ["/authors/OL34184A"]
+  author_alternative_name?: string[]  // romanized/alternate forms e.g. "Haruki Murakami"
   first_publish_year?: number
   publish_date?: string[]
   cover_i?: number              // cover ID for covers.openlibrary.org

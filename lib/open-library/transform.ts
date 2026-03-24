@@ -71,10 +71,24 @@ export function searchDocToBook(doc: OLSearchDoc): BookInsert {
     else if (isbn.length === 13) isbn13.push(isbn)
   }
 
+  // If primary author names are non-Latin (e.g. 村上春樹), find Latin-script
+  // alternatives from author_alternative_name (e.g. "Haruki Murakami").
+  // We pick one Latin alternative per non-Latin primary name, in order.
+  let authorNames = doc.author_name ?? []
+  if (authorNames.length > 0 && !authorNames.every(isLatinScript)) {
+    const latinAlts = (doc.author_alternative_name ?? []).filter(isLatinScript)
+    if (latinAlts.length > 0) {
+      // Use as many Latin alts as there are primary authors (usually just 1)
+      authorNames = authorNames.map((name, i) =>
+        isLatinScript(name) ? name : (latinAlts[i] ?? latinAlts[0] ?? name)
+      )
+    }
+  }
+
   return {
     id: workId,
     title: doc.title,
-    author_names: doc.author_name ?? [],
+    author_names: authorNames,
     author_ol_ids: (doc.author_key ?? []).map((k) => k.replace(/^\/authors\//, '')),
     cover_url: coverUrl,
     cover_ol_id: doc.cover_i ?? null,

@@ -43,6 +43,7 @@ export async function searchBooks(options: SearchOptions): Promise<OLSearchRespo
       'title',
       'author_name',
       'author_key',
+      'author_alternative_name',
       'first_publish_year',
       'publish_date',
       'cover_i',
