@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { fetchGoogleBooksCover } from '@/lib/google-books/client'
 import type { Database } from '@/types/database.types'
 
@@ -7,35 +8,56 @@ type Book = Database['public']['Tables']['books']['Row']
 
 /**
  * Upsert one or more books into the database (our cache of OL metadata).
- * After upserting, fires a background job to upgrade any OL covers to
- * higher-quality Google Books covers (looked up by ISBN).
+ * Preserves any existing Google Books cover URLs so repeated upserts don't
+ * downgrade covers back to OL quality. Then fires a background job to
+ * upgrade remaining OL covers to Google Books covers via ISBN lookup.
  */
 export async function cacheBooks(books: BookInsert[]): Promise<void> {
   if (!books.length) return
   const supabase = createClient()
+
+  // Fetch existing cover URLs so we don't overwrite already-upgraded covers
+  const ids = books.map((b) => b.id!)
+  const { data: existing } = await supabase
+    .from('books')
+    .select('id, cover_url')
+    .in('id', ids)
+
+  const existingCovers = new Map(
+    (existing ?? []).map((b) => [b.id, b.cover_url])
+  )
+
+  // Preserve Google Books covers — don't let OL upsert overwrite them
+  const booksToUpsert = books.map((book) => {
+    const stored = existingCovers.get(book.id!)
+    if (stored?.includes('books.google')) return { ...book, cover_url: stored }
+    return book
+  })
+
   const { error } = await supabase
     .from('books')
-    .upsert(books, { onConflict: 'id', ignoreDuplicates: false })
+    .upsert(booksToUpsert, { onConflict: 'id', ignoreDuplicates: false })
   if (error) {
     console.error('[cache] Failed to upsert books:', error.message)
     return
   }
 
   // Upgrade covers to Google Books in the background — don't block the caller
-  upgradeCovers(books).catch(() => {})
+  upgradeCovers(booksToUpsert).catch(() => {})
 }
 
 /**
  * For each book that has an ISBN and doesn't already have a Google Books cover,
  * fetch a better cover URL from Google Books and save it to the database.
- * Runs in parallel across all books.
+ * Uses the admin client since this runs outside the request context.
  */
 async function upgradeCovers(books: BookInsert[]): Promise<void> {
-  const supabase = createClient()
+  // Use service-role client — this runs asynchronously outside the request
+  // lifecycle where the cookie-based server client is no longer available
+  const supabase = createAdminClient()
 
   await Promise.all(
     books.map(async (book) => {
-      // Skip if we already have a Google Books cover stored
       if (book.cover_url?.includes('books.google')) return
 
       const isbn = book.isbn_13?.[0] ?? book.isbn_10?.[0]
