@@ -49,10 +49,17 @@ export async function enrichWithGoogleCovers(books: BookInsert[]): Promise<BookI
   return Promise.all(
     books.map(async (book) => {
       if (book.cover_url?.includes('books.google')) return book
-      const isbn = (book.isbn_13 as string[] | null)?.[0] ?? (book.isbn_10 as string[] | null)?.[0]
-      if (!isbn) return book
-      const coverUrl = await fetchGoogleBooksCover(isbn)
-      return coverUrl ? { ...book, cover_url: coverUrl } : book
+
+      // Try isbn-13s first, then isbn-10s; stop at first hit
+      const isbns = [
+        ...((book.isbn_13 as string[] | null) ?? []).slice(0, 3),
+        ...((book.isbn_10 as string[] | null) ?? []).slice(0, 2),
+      ]
+      for (const isbn of isbns) {
+        const coverUrl = await fetchGoogleBooksCover(isbn)
+        if (coverUrl) return { ...book, cover_url: coverUrl }
+      }
+      return book
     })
   )
 }

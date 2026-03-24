@@ -1,5 +1,5 @@
 import type { OLSearchDoc, OLWorkResponse } from './types'
-import { coverUrlById, coverUrlByWorkId, toWorkId, fetchAuthor, toAuthorId } from './client'
+import { coverUrlById, toWorkId, fetchAuthor, toAuthorId } from './client'
 import type { Database } from '@/types/database.types'
 
 type BookInsert = Database['public']['Tables']['books']['Insert']
@@ -115,12 +115,12 @@ export function deduplicateSearchDocs(docs: OLSearchDoc[]): OLSearchDoc[] {
 /** Map an OL search result doc to our Book insert shape */
 export function searchDocToBook(doc: OLSearchDoc): BookInsert {
   const workId = toWorkId(doc.key)
-  // Only generate a cover URL if OL has at least one cover for this work
-  // (indicated by cover_i being present). coverUrlByWorkId on a work with no
-  // cover returns OL's "no image" placeholder (HTTP 200), which we can't
-  // detect client-side. If cover_i is absent, leave null so Google Books
-  // enrichment can fill in, or BookCover falls back to initials.
-  const coverUrl = doc.cover_i ? coverUrlByWorkId(workId) : null
+  // Use the specific edition cover from cover_i as the OL fallback.
+  // The work-level cover endpoint (coverUrlByWorkId) can return OL's "no image"
+  // placeholder even when cover_i is present, because the work-level cover is
+  // separately registered. cover_i is always a real image.
+  // Google Books enrichment will override this with a better cover when available.
+  const coverUrl = doc.cover_i ? coverUrlById(doc.cover_i) : null
 
   const isbn10: string[] = []
   const isbn13: string[] = []
