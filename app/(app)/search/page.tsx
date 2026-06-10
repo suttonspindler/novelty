@@ -1,6 +1,6 @@
 import { searchBooks } from '@/lib/open-library/client'
 import { searchDocToBook, deduplicateSearchDocs, resolveAuthorNames } from '@/lib/open-library/transform'
-import { cacheBooks } from '@/lib/open-library/cache'
+import { cacheBooks, getCachedCoverUrls } from '@/lib/open-library/cache'
 import { BookCard } from '@/components/books/book-card'
 import { SearchInput } from './search-input'
 
@@ -28,13 +28,19 @@ export default async function SearchPage({ searchParams }: Props) {
       const result = await searchBooks({ query, limit: PAGE_SIZE * 3, offset })
       const dedupedDocs = deduplicateSearchDocs(result.docs).slice(0, PAGE_SIZE)
       const resolvedDocs = await resolveAuthorNames(dedupedDocs)
-      // Search grids show the Open Library cover (cover_i). Higher-quality
-      // covers are gathered and curated when a book's detail page is opened.
       books = resolvedDocs.map(searchDocToBook)
       total = result.numFound
 
-      // Cache in background
-      cacheBooks(books).catch(() => {})
+      // For books we've already cached, show the curated default cover instead
+      // of the raw Open Library cover from the live search response.
+      const curated = await getCachedCoverUrls(books.map((b) => b.id))
+      books = books.map((b) =>
+        curated.has(b.id) ? { ...b, cover_url: curated.get(b.id)! } : b
+      )
+
+      // Cache new books in the background; insert-only so re-searching never
+      // overwrites a curated cover_url on a book we already have.
+      cacheBooks(books, { onlyInsert: true }).catch(() => {})
     } catch {
       // OL unavailable — show empty state
     }

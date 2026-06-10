@@ -13,17 +13,40 @@ type BookCoverRow = Database['public']['Tables']['book_covers']['Row']
  * Covers are gathered separately (see collectCovers / saveCovers). Uses the
  * admin client to bypass RLS since the books table is a shared content cache,
  * not user-specific data.
+ *
+ * Pass `onlyInsert` to skip rows that already exist — used by search-result
+ * caching so background re-caching never clobbers a curated cover_url (or
+ * other enriched fields) on a book we've already seen.
  */
-export async function cacheBooks(books: BookInsert[]): Promise<void> {
+export async function cacheBooks(
+  books: BookInsert[],
+  opts: { onlyInsert?: boolean } = {}
+): Promise<void> {
   if (!books.length) return
   const supabase = createAdminClient()
 
   const { error } = await supabase
     .from('books')
-    .upsert(books, { onConflict: 'id', ignoreDuplicates: false })
+    .upsert(books, { onConflict: 'id', ignoreDuplicates: opts.onlyInsert ?? false })
   if (error) {
     console.error('[cache] Failed to upsert books:', error.message)
   }
+}
+
+/**
+ * Look up the curated cover_url for a set of book ids we may already have
+ * cached. Used by search to show the admin-selected default rather than the
+ * raw Open Library cover from the live search response.
+ */
+export async function getCachedCoverUrls(ids: string[]): Promise<Map<string, string>> {
+  if (!ids.length) return new Map()
+  const supabase = createClient()
+  const { data } = await supabase.from('books').select('id, cover_url').in('id', ids)
+  const map = new Map<string, string>()
+  for (const row of (data as { id: string; cover_url: string | null }[] | null) ?? []) {
+    if (row.cover_url) map.set(row.id, row.cover_url)
+  }
+  return map
 }
 
 /**
