@@ -12,6 +12,7 @@ export type Database = {
           avatar_url: string | null
           website: string | null
           is_private: boolean
+          is_admin: boolean
           created_at: string
           updated_at: string
         }
@@ -23,6 +24,7 @@ export type Database = {
           avatar_url?: string | null
           website?: string | null
           is_private?: boolean
+          is_admin?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -34,6 +36,7 @@ export type Database = {
           avatar_url?: string | null
           website?: string | null
           is_private?: boolean
+          is_admin?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -99,6 +102,42 @@ export type Database = {
           original_language?: string | null
           created_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      book_covers: {
+        Row: {
+          id: string
+          book_id: string
+          url: string
+          source: string
+          source_ref: string | null
+          width: number | null
+          height: number | null
+          is_default: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          book_id: string
+          url: string
+          source: string
+          source_ref?: string | null
+          width?: number | null
+          height?: number | null
+          is_default?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          book_id?: string
+          url?: string
+          source?: string
+          source_ref?: string | null
+          width?: number | null
+          height?: number | null
+          is_default?: boolean
+          created_at?: string
         }
         Relationships: []
       }
@@ -534,6 +573,7 @@ type Tables = Database['public']['Tables']
 
 export type Profile         = Tables['profiles']['Row']
 export type Book            = Tables['books']['Row']
+export type BookCoverRow    = Tables['book_covers']['Row']
 export type Shelf           = Tables['shelves']['Row']
 export type BookShelf       = Tables['book_shelves']['Row']
 export type Rating          = Tables['ratings']['Row']

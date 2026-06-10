@@ -1,7 +1,6 @@
 import { searchBooks } from '@/lib/open-library/client'
 import { searchDocToBook, deduplicateSearchDocs, resolveAuthorNames } from '@/lib/open-library/transform'
 import { cacheBooks } from '@/lib/open-library/cache'
-import { enrichWithGoogleCovers } from '@/lib/google-books/client'
 import { BookCard } from '@/components/books/book-card'
 import { SearchInput } from './search-input'
 
@@ -29,8 +28,9 @@ export default async function SearchPage({ searchParams }: Props) {
       const result = await searchBooks({ query, limit: PAGE_SIZE * 3, offset })
       const dedupedDocs = deduplicateSearchDocs(result.docs).slice(0, PAGE_SIZE)
       const resolvedDocs = await resolveAuthorNames(dedupedDocs)
-      const rawBooks = resolvedDocs.map(searchDocToBook)
-      books = await enrichWithGoogleCovers(rawBooks)
+      // Search grids show the Open Library cover (cover_i). Higher-quality
+      // covers are gathered and curated when a book's detail page is opened.
+      books = resolvedDocs.map(searchDocToBook)
       total = result.numFound
 
       // Cache in background

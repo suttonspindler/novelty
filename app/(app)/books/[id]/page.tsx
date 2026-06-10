@@ -3,9 +3,11 @@ import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { fetchWork } from '@/lib/open-library/client'
 import { searchDocToBook, mergeWorkIntoBook } from '@/lib/open-library/transform'
-import { cacheBooks, getCachedBook } from '@/lib/open-library/cache'
-import { enrichWithGoogleCovers } from '@/lib/google-books/client'
+import { cacheBooks, getCachedBook, getBookCovers, saveCovers } from '@/lib/open-library/cache'
+import { collectCovers } from '@/lib/covers/sources'
+import { getIsAdmin } from '@/lib/auth/admin'
 import { BookCover } from '@/components/books/book-cover'
+import { CoverPicker } from '@/components/books/cover-picker'
 import { BookCard } from '@/components/books/book-card'
 import { AddToShelfButton } from '@/components/books/add-to-shelf-button'
 import { UserRating } from '@/components/books/user-rating'
@@ -44,20 +46,33 @@ async function getBook(id: string): Promise<Book | null> {
     const work = await fetchWork(id)
     const base = cached ?? searchDocToBook({ key: `/works/${id}`, title: work.title } as OLSearchDoc)
     const merged = mergeWorkIntoBook(base, work)
-    const [enriched] = await enrichWithGoogleCovers([merged])
-    await cacheBooks([enriched])
-    return enriched as Book
+    await cacheBooks([merged])
+    return merged as Book
   } catch {
     return cached ?? null
   }
 }
 
 export default async function BookPage({ params }: Props) {
-  const book = await getBook(params.id)
+  let book = await getBook(params.id)
   if (!book) notFound()
 
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  // Cover curation is admin-only. Gather candidate covers the first time an
+  // admin opens a book (avoids external calls for anonymous/regular viewers),
+  // then re-read the book in case the auto-default updated cover_url.
+  const isAdmin = await getIsAdmin()
+  let covers: Awaited<ReturnType<typeof getBookCovers>> = []
+  if (isAdmin) {
+    covers = await getBookCovers(book.id)
+    if (covers.length === 0) {
+      await saveCovers(book.id, await collectCovers(book))
+      covers = await getBookCovers(book.id)
+      book = (await getCachedBook(book.id)) ?? book
+    }
+  }
 
   // Fetch ratings and reviews in parallel
   const [
@@ -193,6 +208,9 @@ export default async function BookPage({ params }: Props) {
           )}
         </div>
       </div>
+
+      {/* Cover curation — admins only */}
+      {isAdmin && <CoverPicker bookId={book.id} covers={covers} />}
 
       {/* Description */}
       {book.description && (
