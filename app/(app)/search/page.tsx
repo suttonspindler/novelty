@@ -2,7 +2,6 @@ import { searchBooks } from '@/lib/open-library/client'
 import { searchDocToBook, deduplicateSearchDocs, resolveAuthorNames } from '@/lib/open-library/transform'
 import { cacheBooks, getCachedCoverUrls } from '@/lib/open-library/cache'
 import { BookCard } from '@/components/books/book-card'
-import { SearchInput } from './search-input'
 
 interface Props {
   searchParams: { q?: string; page?: string }
@@ -51,18 +50,15 @@ export default async function SearchPage({ searchParams }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Search</h1>
+        <h1 className="text-2xl font-bold">{query ? 'Search results' : 'Search'}</h1>
+        {query && (
+          <p className="text-sm text-muted-foreground mt-1">
+            {total > 0
+              ? `${total.toLocaleString()} results for "${query}"`
+              : `No results for "${query}"`}
+          </p>
+        )}
       </div>
-
-      <SearchInput defaultValue={query} />
-
-      {query && (
-        <p className="text-sm text-muted-foreground">
-          {total > 0
-            ? `${total.toLocaleString()} results for "${query}"`
-            : `No results for "${query}"`}
-        </p>
-      )}
 
       {books.length > 0 && (
         <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
@@ -107,7 +103,7 @@ export default async function SearchPage({ searchParams }: Props) {
       {!query && (
         <div className="py-16 text-center text-muted-foreground">
           <p className="text-lg font-medium">Search for any book</p>
-          <p className="text-sm mt-1">Powered by Open Library — millions of books available.</p>
+          <p className="text-sm mt-1">Use the search bar above — powered by Open Library, millions of books available.</p>
         </div>
       )}
     </div>

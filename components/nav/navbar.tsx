@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { UserMenu } from './user-menu'
@@ -27,7 +28,9 @@ export async function Navbar() {
         </Link>
 
         <div className="flex-1 max-w-sm">
-          <NavSearch />
+          <Suspense fallback={null}>
+            <NavSearch />
+          </Suspense>
         </div>
 
         <div className="flex items-center gap-2 ml-auto">
