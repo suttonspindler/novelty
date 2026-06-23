@@ -8,6 +8,16 @@ export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
   const { pathname } = request.nextUrl
 
+  // Only routes that gate on auth need the Supabase round-trip. Everything
+  // else passes through untouched — avoids a network call (and potential
+  // timeout) on every page load.
+  const needsAuth =
+    PROTECTED.some((p) => pathname.startsWith(p)) ||
+    AUTH_ONLY.some((p) => pathname.startsWith(p))
+  if (!needsAuth) {
+    return supabaseResponse
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -48,6 +58,11 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/dashboard/:path*',
+    '/settings/:path*',
+    '/login',
+    '/signup',
+    '/reset-password',
+    '/update-password',
   ],
 }
